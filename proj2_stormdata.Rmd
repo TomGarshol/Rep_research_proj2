@@ -1,0 +1,82 @@
+---
+title: "Course Project 2 - Stormdata"
+author: "Tom Garshol"
+date: "12/26/2018"
+output: html_document
+---
+
+This document presents the data processing, analysis and result of the U.S National Oceanic and Atmospheric Administration???s storm database interms of its impact on property damage and human health.
+
+This project consists of a databaseanalyse , for to find the answeres for two major question:
+
+Which types of events are most harmful with respect to population health, all over USA?
+
+Across the United States, which types of events have the greatest economic consequences?
+
+The data source -> https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2
+
+The .bz file has been expaned, and stormdata.csv will be the source.
+
+Initial coding : 
+
+```{r} 
+library(tidyverse)
+StormData <- read.csv("repdata-data-StormData.csv", sep = ",", stringsAsFactors = F)
+str(StormData) 
+```
+
+Finding the variables that will be used : 
+
+```{r}
+df <- StormData[, c("BGN_DATE", "EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")]
+```
+
+"evtype" will be regrouped for all categories that hasn??t been collected.
+
+```{r}
+df$EVENT <- "OTHERS"
+df$EVENT[grep(".*HAIL.*", df$EVTYPE, ignore.case = TRUE)] <- "HAIL"
+df$EVENT[grep(".*HEAT.*", df$EVTYPE, ignore.case = TRUE)] <- "HEAT"
+df$EVENT[grep(".*FIRE.*", df$EVTYPE, ignore.case = TRUE)] <- "HEAT"
+df$EVENT[grep(".*HIGH TEMPERATURE.*", df$EVTYPE, ignore.case = TRUE)] <- "HEAT"
+df$EVENT[grep(".*COLD.*", df$EVTYPE, ignore.case = TRUE)] <- "COLD"
+df$EVENT[grep(".*FROST.*", df$EVTYPE, ignore.case = TRUE)] <- "COLD"
+df$EVENT[grep(".*LOW TEMPERATURE.*", df$EVTYPE, ignore.case = TRUE)] <- "COLD"
+df$EVENT[grep(".*FLOOD.*", df$EVTYPE, ignore.case = TRUE)] <- "FLOOD"
+df$EVENT[grep(".*WIND.*", df$EVTYPE, ignore.case = TRUE)] <- "WIND"
+df$EVENT[grep(".*STORM.*", df$EVTYPE, ignore.case = TRUE)] <- "STORM"
+df$EVENT[grep(".*SNOW.*", df$EVTYPE, ignore.case = TRUE)] <- "SNOW"
+df$EVENT[grep(".*TORNADO.*", df$EVTYPE, ignore.case = TRUE)] <- "TORNADO"
+df$EVENT[grep(".*HURRICANE.*", df$EVTYPE, ignore.case = TRUE)] <- "HURRICANE"
+df$EVENT[grep(".*LIGHTNING.*", df$EVTYPE, ignore.case = TRUE)] <- "LIGHTNING"
+df$EVENT[grep(".*DROUGHT.*", df$EVTYPE, ignore.case = TRUE)] <- "DROUGHT"
+df$EVENT[grep(".*FOG.*", df$EVTYPE, ignore.case = TRUE)] <- "FOG"
+df$EVENT[grep(".*RAIN.*", df$EVTYPE, ignore.case = TRUE)] <- "RAIN"
+```
+
+Mapping the property damage to numeric values :
+
+```{r}
+key <- sort(unique(df$PROPDMGEXP))
+key_value <- c(0,0,0,1,10,10,10,10,10,10,10,10,10,10^9,10^2,10^2,10^3,10^6,10^6)
+df_key_value <- data.frame(key, key_value)
+
+df$property_factor <- df_key_value$key_value[match(df$PROPDMGEXP, df_key_value$key)]
+df$crop_factor     <- df_key_value$key_value[match(df$CROPDMGEXP, df_key_value$key)]
+```
+
+Health concenquences : 
+```{r}
+df %>% 
+      select(EVENT, FATALITIES, INJURIES) %>% 
+      group_by(EVENT) %>% 
+      summarise(total_fatalities = sum(FATALITIES),
+                total_injuries   = sum(INJURIES),
+                total_casualties = total_fatalities + total_injuries) %>% 
+      select(EVENT, total_casualties) %>% 
+      arrange(desc(total_casualties)) %>% 
+          ggplot(aes(x=reorder(EVENT, total_casualties), y= total_casualties)) + 
+              geom_bar(stat = "identity") +
+              labs(x = "Event", y = "Total Casualties", title = "Casualties & Injuries by Weather Event") +
+              coord_flip()
+```
