@@ -5,13 +5,13 @@ date: "12/26/2018"
 output: html_document
 ---
 
-This document presents the data processing, analysis and result of the U.S National Oceanic and Atmospheric Administration???s storm database interms of its impact on property damage and human health.
+This document presents the data processing, analysis and result of the U.S National Oceanic and Atmospheric Administration’s storm database interms of its impact on property damage and human health.
 
 This project consists of a databaseanalyse , for to find the answeres for two major question:
 
-Which types of events are most harmful with respect to population health, all over USA?
+### Which types of events are most harmful with respect to population health, all over USA?
 
-Across the United States, which types of events have the greatest economic consequences?
+### Across the United States, which types of events have the greatest economic consequences?
 
 The data source -> https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2
 
@@ -25,13 +25,13 @@ StormData <- read.csv("repdata-data-StormData.csv", sep = ",", stringsAsFactors 
 str(StormData) 
 ```
 
-Finding the variables that will be used : 
+#### Finding the variables that will be used : 
 
 ```{r}
 df <- StormData[, c("BGN_DATE", "EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")]
 ```
 
-"evtype" will be regrouped for all categories that hasn??t been collected.
+#### "evtype" will be regrouped for all categories that hasn´t been collected.
 
 ```{r}
 df$EVENT <- "OTHERS"
@@ -54,7 +54,7 @@ df$EVENT[grep(".*FOG.*", df$EVTYPE, ignore.case = TRUE)] <- "FOG"
 df$EVENT[grep(".*RAIN.*", df$EVTYPE, ignore.case = TRUE)] <- "RAIN"
 ```
 
-Mapping the property damage to numeric values :
+#### Mapping the property damage to numeric values :
 
 ```{r}
 key <- sort(unique(df$PROPDMGEXP))
@@ -65,7 +65,7 @@ df$property_factor <- df_key_value$key_value[match(df$PROPDMGEXP, df_key_value$k
 df$crop_factor     <- df_key_value$key_value[match(df$CROPDMGEXP, df_key_value$key)]
 ```
 
-Health concenquences : 
+#### The health effects : 
 ```{r}
 df %>% 
       select(EVENT, FATALITIES, INJURIES) %>% 
@@ -79,4 +79,19 @@ df %>%
               geom_bar(stat = "identity") +
               labs(x = "Event", y = "Total Casualties", title = "Casualties & Injuries by Weather Event") +
               coord_flip()
+```
+#### The economic consequences : 
+
+```{r}
+df %>% 
+      mutate(property_damage = PROPDMG * property_factor,
+             crop_damage = CROPDMG * crop_factor,
+             total_damage = property_damage + crop_damage) %>% 
+      group_by(EVENT) %>% 
+      summarise(damage_by_event = sum(total_damage, na.rm = T)) %>% 
+      arrange(desc(damage_by_event)) %>% 
+          ggplot(aes(x=reorder(EVENT, damage_by_event), y= damage_by_event)) + 
+             geom_bar(stat = "identity") +
+             labs(x = "Event", y = "Property & Crop Damage", title = "Damages (Property & Crops) by Weather Event") +
+             coord_flip()
 ```
